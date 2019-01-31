@@ -111,23 +111,44 @@ def update_service_epod(potd, target_file):
 def update_service_flickr(potd, target_file):
     is_ok = False
     potd_api = copy.copy(potd)
-    date = datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(1), '%Y-%m-%d')
     flickr_api = "?api_key=11829a470557ad8e10b02e80afacb3af"
     flickr_api += "&method=flickr.interestingness.getList"
-    flickr_api += "&date=%s" %(date)
-    flickr_api += "&extras=url_o"
+    flickr_api += "&extras=url_o,url_k,url_h"
     flickr_api += "&page=1"
     flickr_api += "&per_page=1"
-    potd_api.url = urllib.parse.urljoin(potd.url, flickr_api)
-    page_content = send_url_req(potd_api)
-    if (page_content):
-        imgs = re.findall(r"url_o=\"([^\"]*)\"", page_content, flags=re.IGNORECASE)
-        if (len(imgs)):
-            is_ok = download_from_url(imgs[len(imgs) - 1], target_file)
-        else:
-            print("Can't parse image for %s:%s" %(potd.name, potd.url))
-    else:
-        print("Can't parse page for %s:%s" %(potd.name, potd.url))
+    day_before = 0
+    day_max = 30
+    while True:
+        if (day_before > day_max):
+            print("No interesting photos within latest %d days" %(day_max))
+            break
+        date = datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(day_before), '%Y-%m-%d')
+        day_before += 1
+        flickr_api_date = flickr_api + "&date=%s" %(date)
+        potd_api.url = urllib.parse.urljoin(potd.url, flickr_api_date)
+        page_content = send_url_req(potd_api)
+        if (page_content):
+            err = re.findall(r"[\s\S]*?stat=\"([^\"]*?)\"[\s\S]*?msg=\"([^\"]*?)\"", page_content, flags=re.IGNORECASE)
+            if (len(err)):
+                print("Fail at %s" %(potd_api.url))
+                print("stat: (%s) msg: (%s)" %(err[0][0], err[0][1]))
+            else:
+                is_ok = False
+                imgs = re.findall(r"url_o=\"([^\"]*)\"", page_content, flags=re.IGNORECASE)
+                if (not is_ok and len(imgs)):
+                    is_ok = download_from_url(imgs[len(imgs) - 1], target_file)
+                imgs = re.findall(r"url_k=\"([^\"]*)\"", page_content, flags=re.IGNORECASE)
+                if (not is_ok and len(imgs)):
+                    is_ok = download_from_url(imgs[len(imgs) - 1], target_file)
+                imgs = re.findall(r"url_h=\"([^\"]*)\"", page_content, flags=re.IGNORECASE)
+                if (not is_ok and len(imgs)):
+                    is_ok = download_from_url(imgs[len(imgs) - 1], target_file)
+                if (is_ok):
+                    break
+                else:
+                    print("Can't find original/large 2048/large 1600 image for %s:%s" %(potd.name, potd.url))
+    if (not is_ok):
+        print("Can't find suitable image within %d days" %(day_max))
 
     return is_ok
 
