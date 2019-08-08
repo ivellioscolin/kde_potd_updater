@@ -221,14 +221,23 @@ def update_potd(potd):
         is_ok = getattr(sys.modules[__name__], potd_provide_callback)(potd, tmp_file)
         if (is_ok):
             for targ in TARGET_DIR:
-                targ_file = os.path.join(targ, potd.name)
-                shutil.copyfile(tmp_file, targ_file)
+                if (os.path.isdir(targ)):
+                    targ_file = os.path.join(targ, potd.name)
+                    shutil.copyfile(tmp_file, targ_file)
+                else:
+                    print("Path %s doesn't exist" %(targ))
             os.remove(tmp_file)
     else:
         print("%s doesn't have a service" %(potd.name))
 
 def main():
-    if(len(sys.argv) == 2):
+    if (len(sys.argv) == 2 or len(sys.argv) == 3):
+        print(sys.argv[2])
+        if (os.path.isdir(sys.argv[2])):
+            SAVE_DIR = sys.argv[2]
+        else:
+            SAVE_DIR = ""
+        TARGET_DIR.append(SAVE_DIR)
         for p in POTD_LIST:
             if (sys.argv[1] == p.name):
                 update_potd(p)
