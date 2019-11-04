@@ -1,5 +1,6 @@
 import urllib.request, urllib.parse
 import re, os, sys, tempfile, string, random, shutil, datetime, copy
+import hashlib
 
 WALLPAPER_DIR = os.environ['HOME'] + "/.cache/plasmashell/plasma_engine_potd/"
 SCREEN_LOCKER_DIR = os.environ['HOME'] + "/.cache/kscreenlocker_greet/plasma_engine_potd/"
@@ -173,7 +174,7 @@ def update_service_noaa(potd, target_file):
     domain = '{uri.scheme}://{uri.netloc}/'.format(uri=urllib.parse.urlparse(potd.url))
     page_content = send_url_req(potd)
     if (page_content):
-        imgs = re.findall(r"img alt=\"Latest Image of the Day.*src=\"([^\"]*)\"", page_content, flags=re.IGNORECASE)
+        imgs = re.findall(r"img alt=\"Latest Image of the Day[\s\S]*?src=\"([^\"]*)\"", page_content, flags=re.IGNORECASE)
         if (len(imgs)):
             img_url = urllib.parse.urljoin(domain, imgs[len(imgs) - 1])
             is_ok = download_from_url(img_url, target_file)
@@ -214,12 +215,37 @@ def update_service_wcpotd(potd, target_file):
     return is_ok
 
 def update_potd(potd):
-    tmp_file = os.path.join(tempfile.gettempdir(), ''.join(random.choices(string.ascii_uppercase + string.digits, k=8)))
+    tmp_name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    tmp_file = os.path.join(tempfile.gettempdir(), tmp_name)
     potd_provide_callback = "update_service_" + potd.name
     if hasattr(sys.modules[__name__], potd_provide_callback):
         print("Updating %s ..." %(potd.desc))
         is_ok = getattr(sys.modules[__name__], potd_provide_callback)(potd, tmp_file)
         if (is_ok):
+            # Save to backup dir
+            if (os.path.isdir(BACKUP_DIR)):
+                targ_file = os.path.join(BACKUP_DIR, potd.name)
+                if (os.path.exists(targ_file)):
+                    old_hash = 0
+                    new_hash = 0
+                    with open(targ_file, 'rb') as afile:
+                        buf = afile.read()
+                        hasher = hashlib.md5()
+                        hasher.update(buf)
+                        old_hash = hasher.hexdigest()
+                    with open(tmp_file, 'rb') as afile:
+                        buf = afile.read()
+                        hasher = hashlib.md5()
+                        hasher.update(buf)
+                        new_hash = hasher.hexdigest()
+                    if (new_hash != old_hash):
+                        targ_file = targ_file + tmp_name
+                        shutil.copyfile(tmp_file, targ_file)
+                else:
+                    shutil.copyfile(tmp_file, targ_file)
+            else:
+                print("Path %s doesn't exist" %(BACKUP_DIR))
+            # Save plasma wallpaper and screenlocker
             for targ in TARGET_DIR:
                 if (os.path.isdir(targ)):
                     targ_file = os.path.join(targ, potd.name)
@@ -231,13 +257,12 @@ def update_potd(potd):
         print("%s doesn't have a service" %(potd.name))
 
 def main():
+    global BACKUP_DIR
     if (len(sys.argv) == 2 or len(sys.argv) == 3):
-        print(sys.argv[2])
         if (os.path.isdir(sys.argv[2])):
-            SAVE_DIR = sys.argv[2]
+            BACKUP_DIR = sys.argv[2]
         else:
-            SAVE_DIR = ""
-        TARGET_DIR.append(SAVE_DIR)
+            BACKUP_DIR = ""
         for p in POTD_LIST:
             if (sys.argv[1] == p.name):
                 update_potd(p)
