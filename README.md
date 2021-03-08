@@ -17,4 +17,4 @@ Supported POTD provider:
 
 Usage:
 ```python
-python kde_potd_updater.py apod|bing|epod|flickr|natgeo|noaa|wcpotd [save]
+python kde_potd_updater.py apod|bing|epod|flickr|natgeo|noaa|wcpotd [backup_dir]

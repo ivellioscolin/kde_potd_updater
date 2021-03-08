@@ -1,9 +1,11 @@
 import urllib.request, urllib.parse
 import re, os, sys, tempfile, string, random, shutil, datetime, copy
 import hashlib
-
-WALLPAPER_DIR = os.environ['HOME'] + "/.cache/plasmashell/plasma_engine_potd/"
+# Not used by KDE plasma
+#WALLPAPER_DIR = os.environ['HOME'] + "/.cache/plasmashell/plasma_engine_potd/"
+WALLPAPER_DIR = os.environ['HOME'] + "/.cache/plasma_engine_potd/"
 SCREEN_LOCKER_DIR = os.environ['HOME'] + "/.cache/kscreenlocker_greet/plasma_engine_potd/"
+FLICKR_PROVIDE_CONF = "https://invent.kde.org/plasma/kdeplasma-addons/-/raw/master/dataengines/potd/flickrprovider.conf"
 
 TARGET_DIR = [WALLPAPER_DIR, SCREEN_LOCKER_DIR]
 
@@ -58,7 +60,8 @@ def show_help():
         potds += p.name
         if (POTD_LIST.index(p) < len(POTD_LIST) - 1):
             potds += "|"
-    print("\nUsage: python kde_potd_updater.py %s\n" %(potds))
+    print("\nUsage: python kde_potd_updater.py %s [backup dir] [backup file surfix]\n" %(potds))
+    print("Example: python kde_potd_updater.py apod /home/user/ 20200101\n")
 
 def update_service_apod(potd, target_file):
     is_ok = False
@@ -96,13 +99,18 @@ def update_service_epod(potd, target_file):
     is_ok = False
     domain = '{uri.scheme}://{uri.netloc}/'.format(uri=urllib.parse.urlparse(potd.url))
     page_content = send_url_req(potd)
+    pattern = []
+    pattern.append(r"class=\"asset-img-link\" href=\"(%s.a/.+-pi)" %(potd.url))
+    pattern.append(r"href=\"(.*-pi)\".*")
     if (page_content):
-        pattern = r"class=\"asset-img-link\" href=\"(%s.a/.+-pi)" %(potd.url)
-        imgs = re.findall(pattern, page_content, flags=re.IGNORECASE)
-        if (len(imgs)):
-            img_url = urllib.parse.urljoin(domain, imgs[len(imgs) - 1])
-            is_ok = download_from_url(img_url, target_file)
-        else:
+        for p in pattern:
+            imgs = re.findall(p, page_content, flags=re.IGNORECASE)
+            if (len(imgs)):
+                img_url = urllib.parse.urljoin(domain, imgs[len(imgs) - 1])
+                is_ok = download_from_url(img_url, target_file)
+                if (is_ok):
+                    break
+        if (not is_ok):
             print("Can't parse image for %s:%s" %(potd.name, potd.url))
     else:
         print("Can't parse page for %s:%s" %(potd.name, potd.url))
@@ -112,7 +120,21 @@ def update_service_epod(potd, target_file):
 def update_service_flickr(potd, target_file):
     is_ok = False
     potd_api = copy.copy(potd)
-    flickr_api = "?api_key=11829a470557ad8e10b02e80afacb3af"
+
+    req_content = ""
+    req = urllib.request.Request(FLICKR_PROVIDE_CONF)
+    try:
+        response = urllib.request.urlopen(req)
+    except urllib.request.HTTPError as err:
+        print("(HTTPError %d) %s:%s" %(err.code, "Flickr Provider Conf", FLICKR_PROVIDE_CONF))
+    else:
+        req_content = response.read().decode("utf-8", errors='ignore')
+    api_key = re.findall(r"API_KEY=(.*)", req_content, flags=re.IGNORECASE)[0]
+    api_secret = re.findall(r"API_SECRET=(.*)", req_content, flags=re.IGNORECASE)[0]
+
+    #flickr_api = "?api_key=11829a470557ad8e10b02e80afacb3af"
+    #flickr_api = "?api_key=5f412b6f21aa9b6978c979c1ca806375"
+    flickr_api = "?api_key={}".format(api_key)
     flickr_api += "&method=flickr.interestingness.getList"
     flickr_api += "&extras=url_o,url_k,url_h"
     flickr_api += "&page=1"
@@ -158,11 +180,16 @@ def update_service_natgeo(potd, target_file):
     domain = '{uri.scheme}://{uri.netloc}/'.format(uri=urllib.parse.urlparse(potd.url))
     page_content = send_url_req(potd)
     if (page_content):
-        imgs = re.findall(r"<meta property=\"og:image\" content=\"(.+)\"", page_content, flags=re.IGNORECASE)
-        if (len(imgs)):
-            img_url = urllib.parse.urljoin(domain, imgs[len(imgs) - 1])
-            is_ok = download_from_url(img_url, target_file)
-        else:
+        pattern = []
+        pattern.append(r"property=\"og:image\" content=\"(.*?)\"")
+        for p in pattern:
+            imgs = re.findall(p, page_content, flags=re.IGNORECASE)
+            if (len(imgs)):
+                img_url = urllib.parse.urljoin(domain, imgs[len(imgs) - 1])
+                is_ok = download_from_url(img_url, target_file)
+                if (is_ok):
+                    break
+        if (not is_ok):
             print("Can't parse image for %s:%s" %(potd.name, potd.url))
     else:
         print("Can't parse page for %s:%s" %(potd.name, potd.url))
@@ -224,7 +251,7 @@ def update_potd(potd):
         if (is_ok):
             # Save to backup dir
             if (os.path.isdir(BACKUP_DIR)):
-                targ_file = os.path.join(BACKUP_DIR, potd.name)
+                targ_file = os.path.join(BACKUP_DIR, potd.name+FILE_SURFIX)
                 if (os.path.exists(targ_file)):
                     old_hash = 0
                     new_hash = 0
@@ -258,11 +285,16 @@ def update_potd(potd):
 
 def main():
     global BACKUP_DIR
-    if (len(sys.argv) == 2 or len(sys.argv) == 3):
-        if (os.path.isdir(sys.argv[2])):
+    global FILE_SURFIX
+    if(len(sys.argv) >= 2):
+        BACKUP_DIR = ""
+        if ((len(sys.argv) >= 3) and (os.path.isdir(sys.argv[2]))):
             BACKUP_DIR = sys.argv[2]
-        else:
-            BACKUP_DIR = ""
+
+        FILE_SURFIX = ""
+        if (len(sys.argv) >= 4):
+            FILE_SURFIX = "_"+sys.argv[3]
+
         for p in POTD_LIST:
             if (sys.argv[1] == p.name):
                 update_potd(p)
