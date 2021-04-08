@@ -5,7 +5,7 @@ import hashlib
 #WALLPAPER_DIR = os.environ['HOME'] + "/.cache/plasmashell/plasma_engine_potd/"
 WALLPAPER_DIR = os.environ['HOME'] + "/.cache/plasma_engine_potd/"
 SCREEN_LOCKER_DIR = os.environ['HOME'] + "/.cache/kscreenlocker_greet/plasma_engine_potd/"
-FLICKR_PROVIDE_CONF = "https://invent.kde.org/plasma/kdeplasma-addons/-/raw/master/dataengines/potd/flickrprovider.conf"
+FLICKR_PROVIDE_CONF = "https://autoconfig.kde.org/potd/flickrprovider.conf"
 
 TARGET_DIR = [WALLPAPER_DIR, SCREEN_LOCKER_DIR]
 
