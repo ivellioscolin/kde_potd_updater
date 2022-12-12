@@ -22,6 +22,7 @@ POTD_LIST.append(POTDProvider("flickr", "https://api.flickr.com/services/rest/",
 POTD_LIST.append(POTDProvider("natgeo", "http://www.nationalgeographic.com/photography/photo-of-the-day/", "National Geographic"))
 POTD_LIST.append(POTDProvider("noaa", "http://www.nesdis.noaa.gov/content/imagery-and-data", "NOAA Environmental Visualization Laboratory Picture of the Day"))
 POTD_LIST.append(POTDProvider("wcpotd", "https://commons.wikimedia.org/w/api.php", "Wikimedia Picture of the Day"))
+POTD_LIST.append(POTDProvider("spotlight", "https://windows10spotlight.com/", "Windows Spotlight"))
 
 def send_url_req(potd):
     req_content = ""
@@ -237,6 +238,39 @@ def update_service_wcpotd(potd, target_file):
             print("Can't parse page for %s:%s" %(potd.name, potd.url))
     else:
         print("Can't parse page for %s:%s" %(potd.name, potd.url))
+
+    return is_ok
+
+def update_service_spotlight(potd, target_file):
+    is_ok = False
+    domain = '{uri.scheme}://{uri.netloc}/'.format(uri=urllib.parse.urlparse(potd.url))
+    page_content = send_url_req(potd)
+    if (page_content):
+        imgs = re.findall(r"<a href=\"https://windows10spotlight.com/images/([\S]*)\"", page_content, flags=re.IGNORECASE))
+        if (len(imgs)):
+            page_content = ""
+            img_page_url = urllib.parse.urljoin('https://windows10spotlight.com/images/', imgs[0])
+            req = urllib.request.Request(img_page_url)
+            try:
+                response = urllib.request.urlopen(req)
+            except urllib.request.HTTPError as err:
+                print("(HTTPError %d) %s" %(err.code, img_page_url))
+            else:
+                page_content = response.read().decode("utf-8", errors='ignore')
+
+            if (page_content):
+                pattern="\"image\":\{\"@type\":\"ImageObject\",\"@id\":\"%s#primaryimage\",\"url\":\"([\S])\"" % img_page_url
+                imgs = re.findall(r"\"image\":{\"@type\":\"ImageObject\",\"@id\":\"%s#primaryimage\",\"url\":\"([\S]*?)\"" % img_page_url, page_content, flags=re.IGNORECASE)
+                if (len(imgs)):
+                    is_ok = download_from_url(imgs[0], target_file)
+                else:
+                    print("Can't parse image for %s:%s" %(potd.name, potd.url))
+            else:
+                print("Can't parse image page for %s:%s" %(potd.name, potd.url))
+        else:
+            print("Can't parse page (no images) for %s:%s" %(potd.name, potd.url))
+    else:
+        print("Can't parse domain page for %s:%s" %(potd.name, potd.url))
 
     return is_ok
 
