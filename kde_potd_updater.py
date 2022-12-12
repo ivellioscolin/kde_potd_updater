@@ -1,13 +1,12 @@
 import urllib.request, urllib.parse
 import re, os, sys, tempfile, string, random, shutil, datetime, copy
 import hashlib
-# Not used by KDE plasma
-#WALLPAPER_DIR = os.environ['HOME'] + "/.cache/plasmashell/plasma_engine_potd/"
-WALLPAPER_DIR = os.environ['HOME'] + "/.cache/plasma_engine_potd/"
-SCREEN_LOCKER_DIR = os.environ['HOME'] + "/.cache/kscreenlocker_greet/plasma_engine_potd/"
+
 FLICKR_PROVIDE_CONF = "https://autoconfig.kde.org/potd/flickrprovider.conf"
 
-TARGET_DIR = [WALLPAPER_DIR, SCREEN_LOCKER_DIR]
+POTD_DIR = os.environ['HOME'] + "/.cache/plasma_engine_potd/"
+
+TARGET_DIR = [POTD_DIR]
 
 class POTDProvider:
     def __init__(self, name, url, desc):
@@ -246,7 +245,7 @@ def update_potd(potd):
     tmp_file = os.path.join(tempfile.gettempdir(), tmp_name)
     potd_provide_callback = "update_service_" + potd.name
     if hasattr(sys.modules[__name__], potd_provide_callback):
-        print("Updating %s ..." %(potd.desc))
+        print("Processing %s ..." %(potd.desc))
         is_ok = getattr(sys.modules[__name__], potd_provide_callback)(potd, tmp_file)
         if (is_ok):
             # Save to backup dir
@@ -270,13 +269,14 @@ def update_potd(potd):
                         shutil.copyfile(tmp_file, targ_file)
                 else:
                     shutil.copyfile(tmp_file, targ_file)
-            else:
-                print("Path %s doesn't exist" %(BACKUP_DIR))
+                    print("  Saved in %s for backup" %(BACKUP_DIR))
+
             # Save plasma wallpaper and screenlocker
             for targ in TARGET_DIR:
                 if (os.path.isdir(targ)):
                     targ_file = os.path.join(targ, potd.name)
                     shutil.copyfile(tmp_file, targ_file)
+                    print("  Saved in %s" %(targ))
                 else:
                     print("Path %s doesn't exist" %(targ))
             os.remove(tmp_file)
