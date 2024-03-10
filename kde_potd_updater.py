@@ -246,7 +246,7 @@ def update_service_spotlight(potd, target_file):
     domain = '{uri.scheme}://{uri.netloc}/'.format(uri=urllib.parse.urlparse(potd.url))
     page_content = send_url_req(potd)
     if (page_content):
-        imgs = re.findall(r"<a href=\"https://windows10spotlight.com/images/([\S]*)\"", page_content, flags=re.IGNORECASE))
+        imgs = re.findall(r"<a href=\"https://windows10spotlight.com/images/([\S]*)\"", page_content, flags=re.IGNORECASE)
         if (len(imgs)):
             page_content = ""
             img_page_url = urllib.parse.urljoin('https://windows10spotlight.com/images/', imgs[0])
