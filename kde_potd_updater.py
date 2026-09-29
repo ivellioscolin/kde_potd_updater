@@ -8,6 +8,8 @@ POTD_DIR = os.environ['HOME'] + "/.cache/plasma_engine_potd/"
 
 TARGET_DIR = [POTD_DIR]
 
+UA=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36")
+
 class POTDProvider:
     def __init__(self, name, url, desc):
         self.name = name
@@ -26,7 +28,10 @@ POTD_LIST.append(POTDProvider("spotlight", "https://windows10spotlight.com/", "W
 
 def send_url_req(potd):
     req_content = ""
-    req = urllib.request.Request(potd.url)
+    req = urllib.request.Request(
+        potd.url,
+        headers={"User-Agent": UA}
+    )
     try:
         response = urllib.request.urlopen(req)
     except urllib.request.HTTPError as err:
@@ -38,7 +43,10 @@ def send_url_req(potd):
 
 def download_from_url(url, filename):
     is_ok = False
-    req = urllib.request.Request(url)
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": UA}
+    )
     try:
         response = urllib.request.urlopen(req)
     except urllib.request.HTTPError as err:
@@ -122,7 +130,10 @@ def update_service_flickr(potd, target_file):
     potd_api = copy.copy(potd)
 
     req_content = ""
-    req = urllib.request.Request(FLICKR_PROVIDE_CONF)
+    req = urllib.request.Request(
+        FLICKR_PROVIDE_CONF,
+        headers={"User-Agent": UA}
+    )
     try:
         response = urllib.request.urlopen(req)
     except urllib.request.HTTPError as err:
@@ -250,7 +261,10 @@ def update_service_spotlight(potd, target_file):
         if (len(imgs)):
             page_content = ""
             img_page_url = urllib.parse.urljoin('https://windows10spotlight.com/images/', imgs[0])
-            req = urllib.request.Request(img_page_url)
+            req = urllib.request.Request(
+                img_page_url,
+                headers={"User-Agent": UA}
+            )
             try:
                 response = urllib.request.urlopen(req)
             except urllib.request.HTTPError as err:
